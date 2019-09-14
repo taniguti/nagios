@@ -14,6 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Takanori TANIGUCHI <askme@pretendco.net>
+# Changelog: - Fix read error when file is binary.
+#            - Remove 'verbose' from help message.
+
 # Mark Ruys <mark.ruys@peercode.nl> - 2015-8-27
 # Changelog: - catch openssl parsing errors
 #            - clean up temporary file on error
@@ -42,6 +46,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request, urllib.parse, urllib.error
+import codecs
 
 def check_crl(url, warn, crit):
     tmpcrl = tempfile.mktemp(".crl")
@@ -55,12 +60,12 @@ def check_crl(url, warn, crit):
 
     try:
         inform = 'DER'
-        crlfile = open(tmpcrl, "r")
-        for line in crlfile:
-            if "BEGIN X509 CRL" in line:
-                inform = 'PEM'
-                break
-        crlfile.close()
+        with codecs.open(tmpcrl, "r", 'utf-8', 'ignore' ) as crlfile:
+            for line in crlfile:
+                if "BEGIN X509 CRL" in line:
+                    inform = 'PEM'
+                    break
+            crlfile.close()
 
         ret = subprocess.check_output(["/usr/bin/openssl", "crl", "-inform", inform, "-noout", "-nextupdate", "-in", tmpcrl], stderr=subprocess.STDOUT)
     except:
@@ -100,7 +105,7 @@ def check_crl(url, warn, crit):
     sys.exit(exitcode)
 
 def usage():
-    print ("check_crl.py -h|--help -v|--verbose -u|--url=<url> -w|--warning=<minutes> -c|--critical=<minutes>")
+    print ("check_crl.py -h|--help -u|--url=<url> -w|--warning=<minutes> -c|--critical=<minutes>")
     print ("")
     print ("Example, if you want to get a warning if a CRL expires in 8 hours and a critical if it expires in 6 hours:")
     print ("./check_crl.py -u \"http://domain.tld/url/crl.crl\" -w 480 -c 360")
